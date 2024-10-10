@@ -4,12 +4,13 @@ from pathlib import Path
 from datetime import datetime
 
 import pytz
-from nonebot_plugin_session import EventSession
+from nonebot_plugin_uninfo import Uninfo
 
 from zhenxun.services.log import logger
 from zhenxun.models.sign_log import SignLog
 from zhenxun.models.sign_user import SignUser
 from zhenxun.utils.utils import get_user_avatar
+from zhenxun.utils.platform import PlatformUtils
 from zhenxun.models.friend_user import FriendUser
 from zhenxun.configs.path_config import IMAGE_PATH
 from zhenxun.models.user_console import UserConsole
@@ -92,7 +93,7 @@ class SignManage:
 
     @classmethod
     async def sign(
-        cls, session: EventSession, nickname: str, is_card_view: bool = False
+        cls, session: Uninfo, nickname: str, is_card_view: bool = False
     ) -> Path | None:
         """签到
 
@@ -104,16 +105,18 @@ class SignManage:
         返回:
             Path: 卡片路径
         """
-        if not session.id1:
-            return None
         now = datetime.now(pytz.timezone("Asia/Shanghai"))
-        user_console = await UserConsole.get_user(session.id1, session.platform)
+        user_console = await UserConsole.get_user(
+            session.user.id, PlatformUtils.get_platform(session)
+        )
         user, _ = await SignUser.get_or_create(
-            user_id=session.id1,
+            user_id=session.user.id,
             defaults={"user_console": user_console, "platform": session.platform},
         )
         new_log = (
-            await SignLog.filter(user_id=session.id1).order_by("-create_time").first()
+            await SignLog.filter(user_id=session.user.id)
+            .order_by("-create_time")
+            .first()
         )
         log_time = None
         if new_log:
@@ -123,7 +126,13 @@ class SignManage:
         if not is_card_view and (not new_log or (log_time and log_time != now.date())):
             return await cls._handle_sign_in(user, nickname, session)
         return await get_card(
-            user, nickname, -1, user_console.gold, "", is_card_view=is_card_view
+            user,
+            session.user.avatar,
+            nickname,
+            -1,
+            user_console.gold,
+            "",
+            is_card_view=is_card_view,
         )
 
     @classmethod
@@ -131,7 +140,7 @@ class SignManage:
         cls,
         user: SignUser,
         nickname: str,
-        session: EventSession,
+        session: Uninfo,
     ) -> Path:
         """签到处理
 
@@ -149,18 +158,17 @@ class SignManage:
         specify_probability = user.specify_probability
         if rand + add_probability > 0.97 or rand < specify_probability:
             impression_added *= 2
-        await SignUser.sign(user, impression_added, session.bot_id, session.platform)
+        platform = PlatformUtils.get_platform(session)
+        await SignUser.sign(user, impression_added, session.self_id, platform)
         gold = random.randint(1, 100)
         gift = random_event(float(user.impression))
         if isinstance(gift, int):
             gold += gift
-            await UserConsole.add_gold(
-                user.user_id, gold + gift, "sign_in", session.platform
-            )
+            await UserConsole.add_gold(user.user_id, gold + gift, "sign_in", platform)
             gift = f"额外金币 +{gift}"
         else:
-            await UserConsole.add_gold(user.user_id, gold, "sign_in", session.platform)
-            await UserConsole.add_props_by_name(user.user_id, gift, 1, session.platform)
+            await UserConsole.add_gold(user.user_id, gold, "sign_in", platform)
+            await UserConsole.add_props_by_name(user.user_id, gift, 1, platform)
             gift += " + 1"
         logger.info(
             f"签到成功. score: {user.impression:.2f} "
@@ -170,6 +178,7 @@ class SignManage:
         )
         return await get_card(
             user,
+            session.user.avatar,
             nickname,
             impression_added,
             gold,

@@ -7,10 +7,10 @@ import nonebot
 from pydantic import BaseModel
 from nonebot.adapters import Bot
 from nonebot.utils import is_coroutine_callable
-from nonebot_plugin_uninfo import get_interface
 from nonebot.adapters.dodo import Bot as DodoBot
 from nonebot.adapters.onebot.v11 import Bot as v11Bot
 from nonebot.adapters.onebot.v12 import Bot as v12Bot
+from nonebot_plugin_uninfo import Uninfo, get_interface
 from nonebot.adapters.kaiheila import Bot as KaiheilaBot
 from nonebot_plugin_alconna.uniseg import Target, Receipt, UniMessage
 
@@ -20,6 +20,8 @@ from zhenxun.utils.message import MessageUtils
 from zhenxun.models.friend_user import FriendUser
 from zhenxun.utils.exception import NotFindSuperuser
 from zhenxun.models.group_console import GroupConsole
+
+driver = nonebot.get_driver()
 
 
 class UserData(BaseModel):
@@ -252,18 +254,21 @@ class PlatformUtils:
             platform: 平台
         """
         if platform == "qq":
-            url = f"http://q1.qlogo.cn/g?b=qq&nk={user_id}&s=160"
-            async with httpx.AsyncClient() as client:
-                for _ in range(3):
-                    try:
-                        return (await client.get(url)).content
-                    except Exception:
-                        logger.error(
-                            "获取用户头像错误",
-                            "Util",
-                            target=user_id,
-                            platform=platform,
-                        )
+            if user_id.isdigit():
+                url = f"http://q1.qlogo.cn/g?b=qq&nk={user_id}&s=160"
+                async with httpx.AsyncClient() as client:
+                    for _ in range(3):
+                        try:
+                            return (await client.get(url)).content
+                        except Exception:
+                            logger.error(
+                                "获取用户头像错误",
+                                "Util",
+                                target=user_id,
+                                platform=platform,
+                            )
+            # else:
+            #     url = f"https://q.qlogo.cn/qqapp/{self.appid}/{user_id}/100"
         return None
 
     @classmethod
@@ -371,7 +376,7 @@ class PlatformUtils:
         return len(create_list)
 
     @classmethod
-    def get_platform(cls, bot: Bot) -> str | None:
+    def get_platform(cls, t: Bot | Uninfo) -> str | None:
         """获取平台
 
         参数:
@@ -380,9 +385,13 @@ class PlatformUtils:
         返回:
             str | None: 平台
         """
-        if interface := get_interface(bot):
-            info = interface.basic_info()
-            platform = info["scope"].lower()
+        if isinstance(t, Bot):
+            if interface := get_interface(t):
+                info = interface.basic_info()
+                platform = info["scope"].lower()
+                return "qq" if platform.startswith("qq") else platform
+        else:
+            platform = t.basic["scope"].lower()
             return "qq" if platform.startswith("qq") else platform
         return "unknown"
 

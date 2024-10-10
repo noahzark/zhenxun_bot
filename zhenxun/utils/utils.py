@@ -133,6 +133,23 @@ def cn2py(word: str) -> str:
     return "".join("".join(i) for i in pypinyin.pinyin(word, style=pypinyin.NORMAL))
 
 
+async def get_image_bytes(url: str) -> bytes | None:
+    """获取图片bytes
+
+    参数:
+        url: url
+    """
+    if not url:
+        return None
+    async with httpx.AsyncClient() as client:
+        for _ in range(3):
+            try:
+                return (await client.get(url)).content
+            except Exception:
+                logger.error("获取图像bytes错误...", "Util")
+    return None
+
+
 async def get_user_avatar(uid: int | str) -> bytes | None:
     """快捷获取用户头像
 

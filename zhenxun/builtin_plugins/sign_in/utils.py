@@ -11,9 +11,8 @@ from nonebot_plugin_htmlrender import template_to_pic
 
 from zhenxun.models.sign_log import SignLog
 from zhenxun.models.sign_user import SignUser
-from zhenxun.utils.utils import get_user_avatar
+from zhenxun.utils.utils import get_image_bytes
 from zhenxun.utils.image_utils import BuildImage
-from zhenxun.utils.platform import PlatformUtils
 from zhenxun.configs.config import Config, BotConfig
 from zhenxun.configs.path_config import IMAGE_PATH, TEMPLATE_PATH
 
@@ -63,6 +62,7 @@ async def init_image():
 
 async def get_card(
     user: SignUser,
+    avatar_url: str | None,
     nickname: str,
     add_impression: float,
     gold: int | None,
@@ -74,6 +74,7 @@ async def get_card(
 
     参数:
         user: SignUser
+        avatar_url: 头像url
         nickname: 用户昵称
         impression: 新增的好感度
         gold: 金币
@@ -99,17 +100,32 @@ async def get_card(
         is_card_view = True
     return (
         await _generate_html_card(
-            user, nickname, add_impression, gold, gift, is_double, is_card_view
+            user,
+            avatar_url,
+            nickname,
+            add_impression,
+            gold,
+            gift,
+            is_double,
+            is_card_view,
         )
         if base_config.get("IMAGE_STYLE") == "zhenxun"
         else await _generate_card(
-            user, nickname, add_impression, gold, gift, is_double, is_card_view
+            user,
+            avatar_url,
+            nickname,
+            add_impression,
+            gold,
+            gift,
+            is_double,
+            is_card_view,
         )
     )
 
 
 async def _generate_card(
     user: SignUser,
+    avatar_url: str | None,
     nickname: str,
     add_impression: float,
     gold: int | None,
@@ -121,6 +137,7 @@ async def _generate_card(
 
     参数:
         user: SignUser
+        avatar_url: 头像
         nickname: 用户昵称
         add_impression: 新增的好感度
         gold: 金币
@@ -137,7 +154,11 @@ async def _generate_card(
         140,
         background=SIGN_BORDER_PATH / "ava_border_01.png",
     )
-    if user.platform == "qq" and (byt := await get_user_avatar(user.user_id)):
+    if (
+        user.platform == "qq"
+        and avatar_url
+        and (byt := await get_image_bytes(avatar_url))
+    ):
         ava = BuildImage(107, 107, background=BytesIO(byt))
     else:
         ava = BuildImage(107, 107, (0, 0, 0))
@@ -273,10 +294,6 @@ async def _generate_card(
     await bk.paste(nickname_img, (30, 15))
     await bk.paste(uid_img, (30, 85))
     await bk.paste(A, (0, 150))
-    # await bk.text((30, 167), "Accumulative check-in for")
-    # _x = bk.getsize("Accumulative check-in for")[0] + sign_day_img.width + 45
-    # await bk.paste(sign_day_img, (398, 158))
-    # await bk.text((_x, 167), "days")
     await bk.paste(tip_image, (10, 167))
     await bk.paste(date_img, (220, 370))
     await bk.paste(lik_text1_img, (220, 240))
@@ -377,6 +394,7 @@ def clear_sign_data_pic():
 
 async def _generate_html_card(
     user: SignUser,
+    avatar_url: str | None,
     nickname: str,
     add_impression: float,
     gold: int | None,
@@ -388,6 +406,7 @@ async def _generate_html_card(
 
     参数:
         user: SignUser
+        avatar_url: 头像url
         nickname: 用户昵称
         add_impression: 新增的好感度
         gold: 金币
@@ -420,9 +439,8 @@ async def _generate_html_card(
         next_impression - previous_impression
     )
     now = datetime.now()
-    ava_url = PlatformUtils.get_user_avatar_url(user.user_id, "qq")
     data = {
-        "ava_url": ava_url,
+        "ava_url": avatar_url,
         "name": nickname,
         "uid": uid,
         "sign_count": f"{user.sign_count}",

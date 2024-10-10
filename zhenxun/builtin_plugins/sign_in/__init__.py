@@ -1,6 +1,7 @@
 from nonebot.plugin import PluginMetadata
 from nonebot_plugin_session import EventSession
 from nonebot_plugin_apscheduler import scheduler
+from nonebot_plugin_uninfo import Uninfo, Session, UniSession
 from nonebot_plugin_alconna import (
     Args,
     Query,
@@ -124,21 +125,20 @@ _sign_matcher.shortcut(
 
 
 @_sign_matcher.assign("$main")
-async def _(session: EventSession, arparma: Arparma, nickname: str = UserName()):
-    if session.id1:
-        if path := await SignManage.sign(session, nickname):
-            logger.info("签到成功", arparma.header_result, session=session)
-            await MessageUtils.build_message(path).finish()
-    return MessageUtils.build_message("用户id为空...").send()
+async def _(arparma: Arparma, session: Session = UniSession()):
+    pass
+    # if path := await SignManage.sign(session, nickname):
+    #     logger.info("签到成功", arparma.header_result, session=session)
+    #     await MessageUtils.build_message(path).finish()
+    # await MessageUtils.build_message("签到失败...").finish()
 
 
 @_sign_matcher.assign("my")
-async def _(session: EventSession, arparma: Arparma, nickname: str = UserName()):
-    if session.id1:
-        if image := await SignManage.sign(session, nickname, True):
-            logger.info("查看我的签到", arparma.header_result, session=session)
-            await MessageUtils.build_message(image).finish()
-    return MessageUtils.build_message("用户id为空...").send()
+async def _(session: Uninfo, arparma: Arparma, nickname: str = UserName()):
+    if image := await SignManage.sign(session, nickname, True):
+        logger.info("查看我的签到", arparma.header_result, session=session)
+        await MessageUtils.build_message(image).finish()
+    await MessageUtils.build_message("签到失败...").finish()
 
 
 @_sign_matcher.assign("list")

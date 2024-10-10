@@ -13,6 +13,7 @@
     "getbbox",
     "hibiapi",
     "httpx",
+    "jsdelivr",
     "kaiheila",
     "lolicon",
     "nonebot",
@@ -22,9 +23,9 @@
     "tobytes",
     "ujson",
     "unban",
+    "Uninfo",
     "userinfo",
-    "zhenxun",
-    "jsdelivr"
+    "zhenxun"
   ],
   "python.analysis.autoImportCompletions": true,
   "python.testing.pytestArgs": ["tests"],
